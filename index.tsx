@@ -22,7 +22,7 @@ import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { findByPropsLazy } from "@webpack";
 import { Button, ChannelStore, GuildStore, NavigationRouter, RelationshipStore, SelectedChannelStore, UserStore } from "@webpack/common";
-import type { Channel, Message, MessageAttachment, User } from "discord-types/general";
+import { Channel, Message, MessageAttachment, User } from "discord-types/general";
 import { ReactNode } from "react";
 import { Webpack } from "Vencord";
 
@@ -82,6 +82,11 @@ export const settings = definePluginSettings({
         description: "Maximum number of notifications displayed at once",
         default: 3,
         markers: makeRange(1, 5, 1)
+    },
+    determineServerNotifications: {
+        type: OptionType.BOOLEAN,
+        description: "Automatically determine what server notifications to show based on your channel/guild settings",
+        default: true
     },
     disableInStreamerMode: {
         type: OptionType.BOOLEAN,
@@ -216,6 +221,7 @@ export default definePlugin({
     settings,
     flux: {
         async MESSAGE_CREATE({ message }: { message: Message; }) {
+
             const channel: Channel = ChannelStore.getChannel(message.channel_id);
             const currentUser = UserStore.getCurrentUser();
 
@@ -224,24 +230,21 @@ export default definePlugin({
 
             if (streamerMode && currentUserStreamerMode) return;
 
-            if (channel.guild_id) { // If this is a guild message and not a private message.
-                if (!ignoredUsers.includes(message.author.id)) {
-                    handleGuildMessage(message);
-                }
-                return;
-            }
-            // Determine whether or not to show notifications.
             if (
                 (
                     (message.author.id === currentUser.id) // If message is from the user.
                     || (!MuteStore.allowAllMessages(channel)) // If user has muted the channel.
                     || (channel.id === SelectedChannelStore.getChannelId()) // If the user is currently in the channel.
                     || (ignoredUsers.includes(message.author.id)) // If the user is ignored.
-                    || (!settings.store.directMessages && channel.isDM()) // If the user has disabled DM notifications.
-                    || (!settings.store.groupMessages && channel.isGroupDM()) // If the user has disabled group DM notifications.
                 )
             ) return;
 
+            if (channel.guild_id) { // If this is a guild message and not a private message.
+                handleGuildMessage(message);
+                return;
+            }
+
+            if (!settings.store.directMessages && channel.isDM() || !settings.store.groupMessages && channel.isGroupDM()) return;
 
             // Prepare the notification.
             const Notification: NotificationData = {
@@ -387,18 +390,70 @@ function switchChannels(guildId: string | null, channelId: string) {
     NavigationRouter.transitionTo(`/channels/${guildId ?? "@me"}/${channelId}/`);
 }
 
+enum NotificationLevel {
+    ALL_MESSAGES = 0,
+    ONLY_MENTIONS = 1,
+    NO_MESSAGES = 2
+}
+
+function findNotificationLevel(channel: Channel): NotificationLevel {
+    const store = Vencord.Webpack.findStore("UserGuildSettingsStore");
+    const userGuildSettings = store.getAllSettings().userGuildSettings[channel.guild_id];
+
+    if (!settings.store.determineServerNotifications) {
+        return NotificationLevel.NO_MESSAGES;
+    }
+
+    if (userGuildSettings) {
+        const channelOverrides = userGuildSettings.channel_overrides?.[channel.id];
+        const guildDefault = userGuildSettings.message_notifications;
+
+        // Check if channel overrides exist and are in the expected format
+        if (channelOverrides && typeof channelOverrides === 'object' && 'message_notifications' in channelOverrides) {
+            return channelOverrides.message_notifications;
+        }
+
+        // Check if guild default is in the expected format
+        if (typeof guildDefault === 'number') {
+            return guildDefault;
+        }
+    }
+
+    // Return a default value if no valid overrides or guild default is found
+    return NotificationLevel.NO_MESSAGES;
+}
+
 async function handleGuildMessage(message: Message) {
+    const c = ChannelStore.getChannel(message.channel_id);
+    const notificationLevel: number = findNotificationLevel(c);
+
+    console.log("[NOTIFICATION LEVEL] " + notificationLevel);
+
     // todo: check if the user who sent it is a friend
     const all = notifyFor.includes(message.channel_id);
     const friend = settings.store.friendServerNotifications && RelationshipStore.isFriend(message.author.id);
 
-    if (!(all || friend))
-        return;
+
+    if (!(all || friend)) { // Relying on the notification level
+        if (notificationLevel >= 2) { // No messages
+            return;
+        } else if (notificationLevel === NotificationLevel.ONLY_MENTIONS) { // Only mentions
+            if (message.mentions.length === 0) {
+                return;
+            }
+
+        }
+    }
 
     const channel: Channel = ChannelStore.getChannel(message.channel_id);
 
     const notificationText = message.content.length > 0 ? message.content : false;
     const richBodyElements: React.ReactNode[] = [];
+
+    const g = GuildStore.getGuild(c.guild_id);
+
+    console.log("[DEBUG] [CHANNEL] " + JSON.stringify(c));
+    console.log("[DEBUG] [GUILD] " + JSON.stringify(g));
 
     // Prepare the notification.
     const Notification: NotificationData = {
