@@ -233,7 +233,6 @@ export default definePlugin({
             if (
                 (
                     (message.author.id === currentUser.id) // If message is from the user.
-                    || (!MuteStore.allowAllMessages(channel)) // If user has muted the channel.
                     || (channel.id === SelectedChannelStore.getChannelId()) // If the user is currently in the channel.
                     || (ignoredUsers.includes(message.author.id)) // If the user is ignored.
                 )
@@ -244,7 +243,7 @@ export default definePlugin({
                 return;
             }
 
-            if (!settings.store.directMessages && channel.isDM() || !settings.store.groupMessages && channel.isGroupDM()) return;
+            if (!settings.store.directMessages && channel.isDM() || !settings.store.groupMessages && channel.isGroupDM() || MuteStore.isChannelMuted(null, channel.id)) return;
 
             // Prepare the notification.
             const Notification: NotificationData = {
@@ -400,7 +399,7 @@ function findNotificationLevel(channel: Channel): NotificationLevel {
     const store = Vencord.Webpack.findStore("UserGuildSettingsStore");
     const userGuildSettings = store.getAllSettings().userGuildSettings[channel.guild_id];
 
-    if (!settings.store.determineServerNotifications) {
+    if (!settings.store.determineServerNotifications || MuteStore.isGuildOrCategoryOrChannelMuted(channel.guild_id, channel.id)) {
         return NotificationLevel.NO_MESSAGES;
     }
 
@@ -427,7 +426,7 @@ async function handleGuildMessage(message: Message) {
     const c = ChannelStore.getChannel(message.channel_id);
     const notificationLevel: number = findNotificationLevel(c);
 
-    console.log("[NOTIFICATION LEVEL] " + notificationLevel);
+    // console.log("[NOTIFICATION LEVEL] " + notificationLevel); // Avoid nuking the whole console
 
     // todo: check if the user who sent it is a friend
     const all = notifyFor.includes(message.channel_id);
