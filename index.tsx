@@ -41,6 +41,12 @@ const UserUtils = findByPropsLazy("getGlobalName");
 // Adjustable variables.
 const USER_MENTION_REGEX = /<@!?(\d{17,20})>|<#(\d{17,20})>|<@&(\d{17,20})>/g; // This regex captures user, channel, and role mentions.
 
+enum StreamingTreatment {
+    NORMAL = 0,
+    NO_CONTENT = 1,
+    IGNORE = 2
+}
+
 export const settings = definePluginSettings({
     position: {
         type: OptionType.SELECT,
@@ -117,6 +123,25 @@ export const settings = definePluginSettings({
         type: OptionType.BOOLEAN,
         description: "Show notifications for friend activity",
         default: true
+    },
+    streamingTreatment: {
+        type: OptionType.SELECT,
+        description: "How to treat notifications while sharing your screen",
+        options: [
+            {
+                label: "Normal - Show the notification as normal",
+                value: StreamingTreatment.NORMAL,
+                default: true
+            },
+            {
+                label: "No Content - Hide the notification body",
+                value: StreamingTreatment.NO_CONTENT
+            },
+            {
+                label: "Ignore - Don't show the notification at all",
+                value: StreamingTreatment.IGNORE
+            }
+        ]
     },
     notifyFor: {
         type: OptionType.STRING,
@@ -225,15 +250,17 @@ export default definePlugin({
             const channel: Channel = ChannelStore.getChannel(message.channel_id);
             const currentUser = UserStore.getCurrentUser();
 
+            const isStreaming = Vencord.Webpack.findStore('ApplicationStreamingStore').getState().activeStreams.length >= 1;
+
             const streamerMode = settings.store.disableInStreamerMode;
             const currentUserStreamerMode = Vencord.Webpack.findStore("StreamerModeStore").enabled;
 
             if (streamerMode && currentUserStreamerMode) return;
+            if (isStreaming && settings.store.streamingTreatment === StreamingTreatment.IGNORE) return;
 
             if (
                 (
                     (message.author.id === currentUser.id) // If message is from the user.
-                    || (!MuteStore.allowAllMessages(channel)) // If user has muted the channel.
                     || (channel.id === SelectedChannelStore.getChannelId()) // If the user is currently in the channel.
                     || (ignoredUsers.includes(message.author.id)) // If the user is ignored.
                 )
@@ -244,7 +271,7 @@ export default definePlugin({
                 return;
             }
 
-            if (!settings.store.directMessages && channel.isDM() || !settings.store.groupMessages && channel.isGroupDM()) return;
+            if (!settings.store.directMessages && channel.isDM() || !settings.store.groupMessages && channel.isGroupDM() || MuteStore.isChannelMuted(null, channel.id)) return;
 
             // Prepare the notification.
             const Notification: NotificationData = {
@@ -370,6 +397,11 @@ export default definePlugin({
             }
 
             Notification.body = limitMessageLength(Notification.body, Notification.attachments > 0);
+
+            if (isStreaming && settings.store.streamingTreatment === StreamingTreatment.NO_CONTENT) {
+                Notification.body = "Message content has been redacted.";
+            };
+
             showNotification(Notification);
         },
 
@@ -400,7 +432,7 @@ function findNotificationLevel(channel: Channel): NotificationLevel {
     const store = Vencord.Webpack.findStore("UserGuildSettingsStore");
     const userGuildSettings = store.getAllSettings().userGuildSettings[channel.guild_id];
 
-    if (!settings.store.determineServerNotifications) {
+    if (!settings.store.determineServerNotifications || MuteStore.isGuildOrCategoryOrChannelMuted(channel.guild_id, channel.id)) {
         return NotificationLevel.NO_MESSAGES;
     }
 
@@ -426,23 +458,29 @@ function findNotificationLevel(channel: Channel): NotificationLevel {
 async function handleGuildMessage(message: Message) {
     const c = ChannelStore.getChannel(message.channel_id);
     const notificationLevel: number = findNotificationLevel(c);
+    let t = false;
+    /*
+    0: All messages
+    1: Only mentions
+    2: No messages
+    */
 
-    console.log("[NOTIFICATION LEVEL] " + notificationLevel);
+    // console.log("[NOTIFICATION LEVEL] " + notificationLevel); // Avoid nuking the whole console
+
+    // !! IF ITS ONLY MENTIONS REPLYS ARE GOING THROUGH
 
     // todo: check if the user who sent it is a friend
     const all = notifyFor.includes(message.channel_id);
     const friend = settings.store.friendServerNotifications && RelationshipStore.isFriend(message.author.id);
 
 
-    if (!(all || friend)) { // Relying on the notification level
-        if (notificationLevel >= 2) { // No messages
-            return;
-        } else if (notificationLevel === NotificationLevel.ONLY_MENTIONS) { // Only mentions
-            if (message.mentions.length === 0) {
-                return;
-            }
 
-        }
+    if (!all || !friend) {
+        t = true;
+        const isMention: boolean = message.content.includes(`<@${UserStore.getCurrentUser().id}>`);
+        const meetsMentionCriteria = notificationLevel !== NotificationLevel.ALL_MESSAGES && !isMention;
+
+        if (notificationLevel === NotificationLevel.NO_MESSAGES || meetsMentionCriteria) return;
     }
 
     const channel: Channel = ChannelStore.getChannel(message.channel_id);
@@ -452,8 +490,8 @@ async function handleGuildMessage(message: Message) {
 
     const g = GuildStore.getGuild(c.guild_id);
 
-    console.log("[DEBUG] [CHANNEL] " + JSON.stringify(c));
-    console.log("[DEBUG] [GUILD] " + JSON.stringify(g));
+    // console.log("[DEBUG] [CHANNEL] " + JSON.stringify(c));
+    // console.log("[DEBUG] [GUILD] " + JSON.stringify(g));
 
     // Prepare the notification.
     const Notification: NotificationData = {
@@ -521,6 +559,14 @@ async function handleGuildMessage(message: Message) {
     }
 
     Notification.body = limitMessageLength(Notification.body, Notification.attachments > 0);
+
+    const isStreaming = Vencord.Webpack.findStore('ApplicationStreamingStore').getState().activeStreams.length >= 1;
+
+    if (isStreaming && settings.store.streamingTreatment === StreamingTreatment.NO_CONTENT) {
+        Notification.body = "Message content has been redacted.";
+    };
+
+    console.log("noti that went through: " + t);
     await showNotification(Notification);
 
 }
