@@ -181,12 +181,12 @@ function stringToList(str: string): string[] {
 
 function limitMessageLength(body: string, hasAttachments: boolean): string {
     if (hasAttachments) {
-        if (body.length > 30) {
+        if (body?.length > 30) {
             return body.substring(0, 27) + "...";
         }
     }
 
-    if (body.length > 165) {
+    if (body?.length > 165) {
         return body.substring(0, 162) + "...";
     }
 
@@ -241,6 +241,10 @@ export default definePlugin({
         {
             name: "Ethan",
             id: 721717126523781240n
+        },
+        {
+            name: "Buzzy",
+            id: 1273353654644117585n
         }
     ],
     settings,
@@ -250,7 +254,7 @@ export default definePlugin({
             const channel: Channel = ChannelStore.getChannel(message.channel_id);
             const currentUser = UserStore.getCurrentUser();
 
-            const isStreaming = Vencord.Webpack.findStore('ApplicationStreamingStore').getState().activeStreams.length >= 1;
+            const isStreaming = Vencord.Webpack.findStore('ApplicationStreamingStore').getState().activeStreams?.length >= 1;
 
             const streamerMode = settings.store.disableInStreamerMode;
             const currentUserStreamerMode = Vencord.Webpack.findStore("StreamerModeStore").enabled;
@@ -278,13 +282,13 @@ export default definePlugin({
                 title: getName(message.author),
                 icon: `https://cdn.discordapp.com/avatars/${message.author.id}/${message.author.avatar}.png?size=128`,
                 body: message.content,
-                attachments: message.attachments.length,
+                attachments: message.attachments?.length,
                 richBody: null,
                 permanent: false,
                 onClick() { SelectedChannelActionCreators.selectPrivateChannel(message.channel_id); }
             };
 
-            const notificationText = message.content.length > 0 ? message.content : false;
+            const notificationText = message.content?.length > 0 ? message.content : false;
             const richBodyElements: React.ReactNode[] = [];
 
             // If this channel is a group DM, include the channel name.
@@ -295,7 +299,7 @@ export default definePlugin({
                 }
 
                 // Finally, truncate the channel name if it's too long.
-                const truncatedChannelName = channelName.length > 20 ? channelName.substring(0, 20) + "..." : channelName;
+                const truncatedChannelName = channelName?.length > 20 ? channelName.substring(0, 20) + "..." : channelName;
                 Notification.title = `${message.author.username} (${truncatedChannelName})`;
             }
             else if (channel.guild_id) // If this is a guild message and not a private message.
@@ -342,7 +346,7 @@ export default definePlugin({
             }
 
             // Message contains an embed.
-            if (message.embeds.length !== 0) {
+            if (message.embeds?.length !== 0) {
                 Notification.body = notificationText || "Sent an embed.";
             }
 
@@ -352,10 +356,10 @@ export default definePlugin({
             }
 
             // Message contains an attachment.
-            if (message.attachments.length !== 0) {
+            if (message.attachments?.length !== 0) {
                 const images = message.attachments.filter(e => typeof e?.content_type === "string" && e?.content_type.startsWith("image"));
                 // Label the notification with the attachment type.
-                if (images.length !== 0) {
+                if (images?.length !== 0) {
                     Notification.body = notificationText || ""; // Dont show any body
                     Notification.image = images[0].url;
                 } else {
@@ -372,7 +376,7 @@ export default definePlugin({
             }
 
             // Replace any mention of users, roles and channels.
-            if (message.mentions.length !== 0 || message.mentionRoles?.length > 0) {
+            if (message.mentions?.length !== 0 || message.mentionRoles?.length > 0) {
                 let lastIndex = 0;
                 Notification.body.replace(USER_MENTION_REGEX, (match, userId, channelId, roleId, offset) => {
                     richBodyElements.push(Notification.body.slice(lastIndex, offset));
@@ -386,12 +390,12 @@ export default definePlugin({
                         richBodyElements.push(addMention(roleId, "role", channel.guild_id));
                     }
 
-                    lastIndex = offset + match.length;
+                    lastIndex = offset + match?.length;
                     return match; // This value is not used but is necessary for the replace function
                 });
             }
 
-            if (richBodyElements.length > 0) {
+            if (richBodyElements?.length > 0) {
                 const MyRichBodyComponent = () => <>{richBodyElements}</>;
                 Notification.richBody = <MyRichBodyComponent />;
             }
@@ -498,13 +502,13 @@ async function handleGuildMessage(message: Message) {
         title: `${getName(message.author)} (#${channel.name})`,
         icon: `https://cdn.discordapp.com/avatars/${message.author.id}/${message.author.avatar}.png?size=128`,
         body: message.content,
-        attachments: message.attachments.length,
+        attachments: message.attachments?.length,
         richBody: null,
         permanent: false,
         onClick() { switchChannels(channel.guild_id, channel.id); }
     };
 
-    if (message.embeds.length !== 0) {
+    if (message.embeds?.length !== 0) {
         Notification.body = notificationText || "Sent an embed.";
     }
 
@@ -514,10 +518,10 @@ async function handleGuildMessage(message: Message) {
     }
 
     // Message contains an attachment.
-    if (message.attachments.length !== 0) {
+    if (message.attachments?.length !== 0) {
         const images = message.attachments.filter(e => typeof e?.content_type === "string" && e?.content_type.startsWith("image"));
         // Label the notification with the attachment type.
-        if (images.length !== 0) {
+        if (images?.length !== 0) {
             Notification.body = notificationText || ""; // Dont show any body
             Notification.image = images[0].url;
         } else {
@@ -534,7 +538,7 @@ async function handleGuildMessage(message: Message) {
     }
 
     // Replace any mention of users, roles and channels.
-    if (message.mentions.length !== 0 || message.mentionRoles?.length > 0) {
+    if (message.mentions?.length !== 0 || message.mentionRoles?.length > 0) {
         let lastIndex = 0;
         Notification.body.replace(USER_MENTION_REGEX, (match, userId, channelId, roleId, offset) => {
             richBodyElements.push(Notification.body.slice(lastIndex, offset));
@@ -548,19 +552,19 @@ async function handleGuildMessage(message: Message) {
                 richBodyElements.push(addMention(roleId, "role", channel.guild_id));
             }
 
-            lastIndex = offset + match.length;
+            lastIndex = offset + match?.length;
             return match; // This value is not used but is necessary for the replace function
         });
     }
 
-    if (richBodyElements.length > 0) {
+    if (richBodyElements?.length > 0) {
         const MyRichBodyComponent = () => <>{richBodyElements}</>;
         Notification.richBody = <MyRichBodyComponent />;
     }
 
     Notification.body = limitMessageLength(Notification.body, Notification.attachments > 0);
 
-    const isStreaming = Vencord.Webpack.findStore('ApplicationStreamingStore').getState().activeStreams.length >= 1;
+    const isStreaming = Vencord.Webpack.findStore('ApplicationStreamingStore').getState().activeStreams?.length >= 1;
 
     if (isStreaming && settings.store.streamingTreatment === StreamingTreatment.NO_CONTENT) {
         Notification.body = "Message content has been redacted.";
