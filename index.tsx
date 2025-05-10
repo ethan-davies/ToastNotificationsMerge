@@ -18,17 +18,16 @@
 
 import { definePluginSettings } from "@api/Settings";
 import { makeRange } from "@components/PluginSettings/components";
-import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { findByPropsLazy } from "@webpack";
 import { Button, ChannelStore, GuildStore, NavigationRouter, RelationshipStore, SelectedChannelStore, UserStore } from "@webpack/common";
-import { Channel, Message, MessageAttachment, User } from "discord-types/general";
+import { Channel, Message, User } from "discord-types/general";
+import { RelationshipType } from "plugins/relationshipNotifier/types";
 import { ReactNode } from "react";
 import { Webpack } from "Vencord";
 
 import { NotificationData, showNotification } from "./components/Notifications";
 import { MessageTypes } from "./types";
-import { RelationshipType } from "plugins/relationshipNotifier/types";
 
 let ignoredUsers: string[] = [];
 let notifyFor: string[] = [];
@@ -168,9 +167,9 @@ export const settings = definePluginSettings({
 function stringToList(str: string): string[] {
     if (str !== "") {
         const array: string[] = [];
-        const string = str.replace(/\s/g, '');
+        const string = str.replace(/\s/g, "");
         const splitArray = string.split(",");
-        splitArray.forEach((id) => {
+        splitArray.forEach(id => {
             array.push(id);
         });
 
@@ -254,7 +253,7 @@ export default definePlugin({
             const channel: Channel = ChannelStore.getChannel(message.channel_id);
             const currentUser = UserStore.getCurrentUser();
 
-            const isStreaming = Vencord.Webpack.findStore('ApplicationStreamingStore').getState().activeStreams?.length >= 1;
+            const isStreaming = Vencord.Webpack.findStore("ApplicationStreamingStore").getState().activeStreams?.length >= 1;
 
             const streamerMode = settings.store.disableInStreamerMode;
             const currentUserStreamerMode = Vencord.Webpack.findStore("StreamerModeStore").enabled;
@@ -315,14 +314,16 @@ export default definePlugin({
                 }
                 case MessageTypes.CHANNEL_RECIPIENT_ADD: {
                     const actor = UserStore.getUser(message.author.id);
-                    const targetUser = UserStore.getUser(message.mentions[0]?.id);
 
+                    const userId = message.mentions[0].replace(/[<@!>]/g, "");
+                    const targetUser = UserStore.getUser(userId);
                     Notification.body = `${getName(targetUser)} was added to the group by ${getName(actor)}.`;
                     break;
                 }
                 case MessageTypes.CHANNEL_RECIPIENT_REMOVE: {
                     const actor = UserStore.getUser(message.author.id);
-                    const targetUser = UserStore.getUser(message.mentions[0]?.id);
+                    const userId = message.mentions[0].replace(/[<@!>]/g, "");
+                    const targetUser = UserStore.getUser(userId);
 
                     if (actor.id !== targetUser.id) {
                         Notification.body = `${getName(targetUser)} was removed from the group by ${getName(actor)}.`;
@@ -404,7 +405,7 @@ export default definePlugin({
 
             if (isStreaming && settings.store.streamingTreatment === StreamingTreatment.NO_CONTENT) {
                 Notification.body = "Message content has been redacted.";
-            };
+            }
 
             showNotification(Notification);
         },
@@ -445,12 +446,12 @@ function findNotificationLevel(channel: Channel): NotificationLevel {
         const guildDefault = userGuildSettings.message_notifications;
 
         // Check if channel overrides exist and are in the expected format
-        if (channelOverrides && typeof channelOverrides === 'object' && 'message_notifications' in channelOverrides) {
+        if (channelOverrides && typeof channelOverrides === "object" && "message_notifications" in channelOverrides) {
             return channelOverrides.message_notifications;
         }
 
         // Check if guild default is in the expected format
-        if (typeof guildDefault === 'number') {
+        if (typeof guildDefault === "number") {
             return guildDefault;
         }
     }
@@ -564,11 +565,11 @@ async function handleGuildMessage(message: Message) {
 
     Notification.body = limitMessageLength(Notification.body, Notification.attachments > 0);
 
-    const isStreaming = Vencord.Webpack.findStore('ApplicationStreamingStore').getState().activeStreams?.length >= 1;
+    const isStreaming = Vencord.Webpack.findStore("ApplicationStreamingStore").getState().activeStreams?.length >= 1;
 
     if (isStreaming && settings.store.streamingTreatment === StreamingTreatment.NO_CONTENT) {
         Notification.body = "Message content has been redacted.";
-    };
+    }
 
     console.log("noti that went through: " + t);
     await showNotification(Notification);
@@ -579,7 +580,7 @@ async function relationshipAdd(user: User, type: Number) {
     user = UserStore.getUser(user.id);
     if (!settings.store.friendActivity) return;
 
-    let notification: NotificationData = {
+    const notification: NotificationData = {
         title: "",
         icon: user.getAvatarURL(),
         body: "",

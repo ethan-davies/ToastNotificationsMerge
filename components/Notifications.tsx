@@ -16,8 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { React, ReactDOM } from "@webpack/common";
-import type { ReactNode } from "react";
+import { React } from "@webpack/common";
+import * as Common from "@webpack/common";
+import type { JSX, ReactNode } from "react";
 import type { Root } from "react-dom/client";
 
 import { settings as PluginSettings } from "../index";
@@ -37,7 +38,7 @@ function getNotificationContainer() {
         const container = document.createElement("div");
         container.id = "toastnotifications-container";
         document.body.append(container);
-        RootContainer = ReactDOM.createRoot(container);
+        RootContainer = Common.createRoot(container);
     }
 
     return RootContainer;

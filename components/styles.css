@@ -1,6 +1,6 @@
 :root {
     /* Body */
-    --toastnotifications-background-color: var(--background-secondary-alt);
+    --toastnotifications-background-color: var(--background-base-low);
     --toastnotifications-text-color: var(--text-normal);
     --toastnotifications-border-radius: 6px;
     --toastnotifications-width: 25vw;
@@ -36,6 +36,7 @@
     flex-direction: column;
     color: var(--toastnotifications-text-color);
     background-color: var(--toastnotifications-background-color);
+    border: 1px solid var(--input-border);
     border-radius: var(--toastnotifications-border-radius);
     overflow: hidden;
     cursor: pointer;
