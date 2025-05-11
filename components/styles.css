@@ -89,7 +89,6 @@
 .toastnotifications-notification-close-btn {
     all: unset;
     cursor: pointer;
-    width: 20px;
     color: var(--toastnotifications-close-button-color);
     opacity: var(--toastnotifications-close-button-opacity);
     transition: opacity 0.2s ease-in-out, color 0.2s ease-in-out;
@@ -113,7 +112,7 @@
 }
 
 .toastnotifications-notification-p {
-    margin-bottom: 3px;
+    margin-top: 3px;
     word-break: break-all;
 }
 
