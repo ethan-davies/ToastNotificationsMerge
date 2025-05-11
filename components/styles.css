@@ -3,7 +3,6 @@
     --toastnotifications-background-color: var(--background-base-low);
     --toastnotifications-text-color: var(--text-normal);
     --toastnotifications-border-radius: 6px;
-    --toastnotifications-width: 25vw;
     --toastnotifications-padding: 1.25rem;
 
     /* Title */
@@ -30,6 +29,18 @@
     --toastnotifications-position-offset: 1rem;
 }
 
+@keyframes toastnotifications-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: var(--toastnotifications-final-opacity, 1);
+        transform: translateY(0);
+    }
+}
+
 .toastnotifications-notification-root {
     all: unset;
     display: flex;
@@ -43,9 +54,11 @@
     position: absolute;
     z-index: 2147483647;
     right: 1rem;
-    width: var(--toastnotifications-width);
+    max-width: 32rem;
     min-height: 10vh;
     bottom: calc(1rem + var(--notification-index) * 12vh);
+    opacity: 0;
+    animation: toastnotifications-fade-in var(--toastnotifications-fadein-duration, 0ms) ease-out forwards;
 }
 
 .toastnotifications-notification {
@@ -61,7 +74,9 @@
 
 .toastnotifications-notification-header {
     display: flex;
+    align-items: center;
     justify-content: space-between;
+    margin-bottom: 3px;
 }
 
 .toastnotifications-notification-title {
@@ -74,6 +89,7 @@
 .toastnotifications-notification-close-btn {
     all: unset;
     cursor: pointer;
+    width: 20px;
     color: var(--toastnotifications-close-button-color);
     opacity: var(--toastnotifications-close-button-opacity);
     transition: opacity 0.2s ease-in-out, color 0.2s ease-in-out;
@@ -97,9 +113,7 @@
 }
 
 .toastnotifications-notification-p {
-    margin: 0.5rem 0 0;
     margin-bottom: 3px;
-    line-height: 140%;
     word-break: break-all;
 }
 
