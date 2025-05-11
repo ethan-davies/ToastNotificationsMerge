@@ -126,6 +126,11 @@ export const settings = definePluginSettings({
         description: "Show notifications for friend activity",
         default: true
     },
+    disableMessageBody: {
+        type: OptionType.BOOLEAN,
+        description: "Redact message body in all notifications",
+        default: false
+    },
     streamingTreatment: {
         type: OptionType.SELECT,
         description: "How to treat notifications while sharing your screen",
@@ -146,11 +151,6 @@ export const settings = definePluginSettings({
         description: "Create a list of user ids to ignore all their notifications from (separate with commas)",
         onChange: () => { ignoredUsers = stringToList(settings.store.ignoreUsers); },
         default: ""
-    },
-    disableMessageBody: {
-        type: OptionType.BOOLEAN,
-        description: "Redact message body in all notifications",
-        default: false
     },
     exampleButton: {
         type: OptionType.COMPONENT,
